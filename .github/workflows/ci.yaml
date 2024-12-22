@@ -1,0 +1,116 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    paths:
+    - .github/workflows/*.yaml
+
+  #pull_request:
+  workflow_dispatch:
+  schedule:
+  - cron: 0 4 * * * # 4AM daily
+
+#defaults:
+  #run:
+    #shell: /bin/zsh --no-rcs --err-exit --pipe-fail {0}
+
+jobs:
+  CI:
+    #strategy:
+      #matrix:
+        #os:
+        #- macos-12
+        #- macos-13
+        #- macos-latest
+        #- macos-15
+        #- ubuntu-20.04
+        #- ubuntu-22.04
+        #- ubuntu-latest
+
+    runs-on: macos-latest #${{ matrix.os }}
+
+    #env:
+      #formula: ys
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      #with:
+        #repository: yaml/yamlscript
+        #token: ${{ secrets.GITHUB_TOKEN }}
+
+    #- name: Checkout & install YAMLScript
+      #uses: yaml/yamlscript-workflow-action@main
+      #with:
+        #ys-file: /dev/null
+
+    #- name: Set up Homebrew
+      #id: set-up-homebrew
+      #uses: Homebrew/actions/setup-homebrew@master
+
+    #- name: Cache Homebrew Bundler RubyGems
+      #uses: actions/cache@v4
+      #with:
+        #path: ${{ steps.set-up-homebrew.outputs.gems-path }}
+        #key: ${{ matrix.os }}-rubygems-${{ steps.set-up-homebrew.outputs.gems-hash }}
+        #restore-keys: ${{ matrix.os }}-rubygems-
+
+    #- name: Install Bundler RubyGems
+      #if: steps.cache.outputs.cache-hit != 'true'
+      #run: brew install-bundler-gems #--groups=all
+
+    - name: Tap
+      run: | #yaml/yamlscript TODO
+        brew tap danielbayley/yamlscript
+        brew install ys
+
+    - name: Test Formula #e
+      run: |
+        brew style ys
+        brew audit ys
+
+    #- name: Set up Git
+      #uses: fregante/setup-git-user@v2
+
+    #uses: fusion-engineering/
+    #- uses: de-vri-es/setup-git-credentials@v2
+      #with:
+        #credentials: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configure Git
+      run: |
+        git config --global user.name  ${{ github.repository_owner }}
+        git config --global user.email ${{ github.event.pusher.email }}
+        git config --global credential.helper store
+        echo https://${{ github.token }}@github.com > ~/.git-credentials
+
+      #//$GITHUB_TOKEN@
+
+      #gh auth setup-git
+      #git config --global credential.helper '!f() { sleep 1; echo "username=git token=${{ secrets.GITHUB_TOKEN }}" }'
+
+      #env:
+        #GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      #.email ${{ user.id }}+${{ user.login }}@users.noreply.github.com
+
+    - name: Bump Version
+      shell: /bin/zsh --no-rcs --err-exit --pipe-fail {0}
+      env:
+        HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
+      run: |
+        brew livecheck --newer-only --quiet --json ys | jq --raw-output '.[].version.latest' | while read v
+        do brew bump-formula-pr --no-audit --no-fork --no-browse --version $v ys
+        done
+
+    #brew bump-formula-pr --dry-run --version 0.1.87 ys
+
+    #--verbose --debug
+    #--dry-run #--write-only
+
+    #- run: cat $(brew --repo danielbayley/yamlscript)/ys.rb
+
+      #env:
+        #GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
